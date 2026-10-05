@@ -33,7 +33,8 @@ interface AppSidebarProps {
 
 export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
   const pathname = usePathname();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
+  const effectiveRoles = user?.roles && user.roles.length > 0 ? user.roles : role;
 
   // Navigation section toggles
   const [crmOpen, setCrmOpen] = useState(true);
@@ -49,7 +50,7 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
   };
 
   const navItem = (href: string, label: string, icon: React.ReactNode, badge?: string | number, badgeColor?: string) => {
-    if (!canAccessRoute(role, href)) return null;
+    if (!canAccessRoute(effectiveRoles, href)) return null;
 
     const active = isActive(href);
     return (
@@ -98,7 +99,7 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         </div>
 
         {/* Section 1: CRM */}
-        {canAccessRoute(role, "/crm") && (
+        {canAccessRoute(effectiveRoles, "/crm") && (
           <div className="space-y-1">
             <button
               onClick={() => setCrmOpen(!crmOpen)}
@@ -121,7 +122,7 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         )}
 
         {/* Section 2: Sales */}
-        {canAccessRoute(role, "/sales") && (
+        {canAccessRoute(effectiveRoles, "/sales") && (
           <div className="space-y-1">
             <button
               onClick={() => setSalesOpen(!salesOpen)}
@@ -142,7 +143,7 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         )}
 
         {/* Section 3: Product */}
-        {canAccessRoute(role, "/product") && (
+        {canAccessRoute(effectiveRoles, "/product") && (
           <div className="space-y-1">
             <button
               onClick={() => setProductOpen(!productOpen)}
@@ -164,7 +165,7 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         )}
 
         {/* Section 4: Project */}
-        {canAccessRoute(role, "/project") && (
+        {canAccessRoute(effectiveRoles, "/project") && (
           <div className="space-y-1">
             <button
               onClick={() => setProjectOpen(!projectOpen)}
@@ -186,7 +187,7 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         )}
 
         {/* Section 5: Bugs */}
-        {canAccessRoute(role, "/bugs") && (
+        {canAccessRoute(effectiveRoles, "/bugs") && (
           <div className="space-y-1">
             <button
               onClick={() => setBugsOpen(!bugsOpen)}
@@ -207,7 +208,7 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         )}
 
         {/* Section 6: Reports */}
-        {canAccessRoute(role, "/reports") && (
+        {canAccessRoute(effectiveRoles, "/reports") && (
           <div className="space-y-1">
             <button
               onClick={() => setReportsOpen(!reportsOpen)}

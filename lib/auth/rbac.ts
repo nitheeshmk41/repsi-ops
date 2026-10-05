@@ -8,31 +8,39 @@ export interface NavItem {
   children?: { title: string; href: string; badge?: string }[];
 }
 
-export function canAccessRoute(role: UserRole, pathname: string): boolean {
-  if (role === "ADMIN" || role === "FOUNDER") return true;
+export function canAccessRoute(
+  roleOrRoles: UserRole | UserRole[] | undefined,
+  pathname: string
+): boolean {
+  if (!roleOrRoles) return false;
+  const roles = Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles];
 
-  if (pathname.startsWith("/crm") || pathname.startsWith("/sales")) {
-    return ["SALES", "MARKETING", "CUSTOMER_SUCCESS"].includes(role);
-  }
+  if (roles.includes("ADMIN") || roles.includes("FOUNDER")) return true;
 
-  if (pathname.startsWith("/product") || pathname.startsWith("/project")) {
-    return ["PROJECT_MANAGER", "DEVELOPER", "QA"].includes(role);
-  }
+  return roles.some((role) => {
+    if (pathname.startsWith("/crm") || pathname.startsWith("/sales")) {
+      return ["SALES", "MARKETING", "CUSTOMER_SUCCESS"].includes(role);
+    }
 
-  if (pathname.startsWith("/bugs")) {
-    return ["PROJECT_MANAGER", "DEVELOPER", "QA", "CUSTOMER_SUCCESS"].includes(role);
-  }
+    if (pathname.startsWith("/product") || pathname.startsWith("/project")) {
+      return ["PROJECT_MANAGER", "DEVELOPER", "QA"].includes(role);
+    }
 
-  if (pathname.startsWith("/reports")) {
-    return ["PROJECT_MANAGER", "SALES"].includes(role);
-  }
+    if (pathname.startsWith("/bugs")) {
+      return ["PROJECT_MANAGER", "DEVELOPER", "QA", "CUSTOMER_SUCCESS"].includes(role);
+    }
 
-  if (pathname.startsWith("/team")) {
-    return ["PROJECT_MANAGER"].includes(role);
-  }
+    if (pathname.startsWith("/reports")) {
+      return ["PROJECT_MANAGER", "SALES"].includes(role);
+    }
 
-  // Dashboard and settings are accessible to all roles
-  return true;
+    if (pathname.startsWith("/team")) {
+      return ["PROJECT_MANAGER"].includes(role);
+    }
+
+    // Dashboard and settings are accessible to all roles
+    return true;
+  });
 }
 
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -56,3 +64,14 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   MARKETING: "Lead attribution, gym conversion patterns, customer engagement analysis.",
   CUSTOMER_SUCCESS: "Gym onboarding health, customer satisfaction feedback, feature request tracking.",
 };
+
+export function roleToAppwriteLabel(role: string): string {
+  return role.replace(/[^a-zA-Z0-9]/g, "");
+}
+
+export function appwriteLabelToRole(label: string): UserRole {
+  const clean = label.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (clean === "PROJECTMANAGER") return "PROJECT_MANAGER";
+  if (clean === "CUSTOMERSUCCESS") return "CUSTOMER_SUCCESS";
+  return clean as UserRole;
+}

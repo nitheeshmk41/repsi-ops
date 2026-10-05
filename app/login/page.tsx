@@ -5,17 +5,16 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, AlertCircle, ArrowRight, ShieldCheck } from "lucide-react";
 import { RepsiLogo } from "@/components/shared/RepsiLogo";
 import { useAuth } from "@/lib/auth/context";
-import { SEED_USERS } from "@/lib/db/seed-data";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("vikram@repsi.app");
-  const [password, setPassword] = useState("repsi2026ops");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { login, switchRole } = useAuth();
+  const { login } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,13 +40,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickLogin = (demoEmail: string, demoRole: any) => {
-    setEmail(demoEmail);
-    setPassword("repsi2026ops");
-    switchRole(demoRole);
-    router.push("/dashboard");
   };
 
   return (
@@ -110,7 +102,7 @@ export default function LoginPage() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => alert("Please contact Vikram (Founder) or your team lead for password reset.")}
+                  onClick={() => alert("Please contact your administrator or team lead for password reset.")}
                   className="text-xs text-emerald-400 hover:text-emerald-300 font-medium"
                 >
                   Forgot password?
@@ -148,7 +140,7 @@ export default function LoginPage() {
                 className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-emerald-500"
               />
               <label htmlFor="remember" className="ml-2 text-xs text-slate-400">
-                Remember this session for 30 days
+                Remember session for 30 days
               </label>
             </div>
 
@@ -168,32 +160,12 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Persona Demo Switcher for fast verification */}
-          <div className="pt-4 border-t border-slate-800">
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Instant Team Role Login (Internal Demo)</span>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {SEED_USERS.slice(0, 4).map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => handleQuickLogin(u.email, u.role)}
-                  className="px-2.5 py-1.5 bg-slate-950/60 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left text-xs transition-colors"
-                >
-                  <div className="font-medium text-white truncate">{u.name.split(" ")[0]}</div>
-                  <div className="text-[10px] text-emerald-400">{u.role}</div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Security & Domain footer */}
         <div className="text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-          <span>Protected by Appwrite Auth & PostgreSQL</span>
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Protected by Appwrite Authentication & TablesDB</span>
           <span>•</span>
           <span className="font-mono">ops.repsi.app</span>
         </div>

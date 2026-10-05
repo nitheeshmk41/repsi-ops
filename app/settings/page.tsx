@@ -30,7 +30,7 @@ export default function SettingsPage() {
     <AppLayout>
       <PageHeader
         title="Settings & System Architecture"
-        subtitle="Appwrite backend connectivity, Managed PostgreSQL status, role permissions, and environment variables."
+        subtitle="Appwrite backend connectivity, TablesDB status, role permissions, and environment variables."
       />
 
       <div className="space-y-6 max-w-4xl">
@@ -70,11 +70,11 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Database className="w-4 h-4 text-cyan-400" />
-              Appwrite Backend & Managed PostgreSQL
+              Appwrite Cloud TablesDB
             </h3>
             <div className="flex items-center gap-1.5 text-xs text-emerald-400">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Engine Ready</span>
+              <span>TablesDB Active</span>
             </div>
           </div>
 
@@ -107,13 +107,13 @@ export default function SettingsPage() {
 
             <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-center justify-between">
               <div>
-                <span className="text-slate-400 font-medium">Primary Relational Storage</span>
+                <span className="text-slate-400 font-medium">Primary Database ID</span>
                 <div className="font-mono text-emerald-400 mt-0.5">
-                  Appwrite Managed PostgreSQL (Native Relational Engine)
+                  {appwriteConfig.databaseId || "repsi_ops_db"} (TablesDB)
                 </div>
               </div>
               <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono">
-                Port 5432
+                Appwrite Cloud
               </span>
             </div>
           </div>

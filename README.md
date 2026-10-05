@@ -30,7 +30,7 @@ PRODUCT RELEASE (v1.5.0)
 
 - **Frontend**: Next.js 16 (App Router), React 19, TypeScript (Strict), Tailwind CSS, Lucide Icons, shadcn/ui design language, React Bits micro-animations.
 - **Backend & Auth**: Appwrite Authentication (Email/Password, SSR Sessions, JWT, Teams/Presences).
-- **Primary Relational Layer**: **Appwrite Managed PostgreSQL** native relational database engine for multi-table relationships, transactions, and foreign keys.
+- **Primary Database Layer**: **Appwrite Databases / TablesDB** fully managed serverless document/relational tables with structured schemas.
 - **File Storage**: Appwrite Storage (Field visit voice notes, gym attachments, bug reproduction screenshots).
 - **Role-Based Access Control**: First-class RBAC with role personas (Admin/Founder, Sales, Project Manager, Developer, QA, Marketing, Customer Success).
 
@@ -41,7 +41,6 @@ PRODUCT RELEASE (v1.5.0)
 - **Node.js**: v20.x or higher
 - **npm**: v10.x or higher
 - **Appwrite Project**: Appwrite Cloud account (free tier) or self-hosted Appwrite 2.x
-- **PostgreSQL**: Appwrite Managed PostgreSQL instance or any standard PostgreSQL instance
 
 ---
 
@@ -59,20 +58,20 @@ npm install
 
 ## 3. Environment Variables
 
-Copy the template `.env.example` to `.env.local`:
+Copy the template `.env.example` to `.env`:
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
 Configure your variables:
 
 | Variable | Description |
 |---|---|
-| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Appwrite Cloud endpoint (`https://cloud.appwrite.io/v1`) |
+| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Appwrite Cloud endpoint (`https://cloud.appwrite.io/v1` or region endpoint) |
 | `NEXT_PUBLIC_APPWRITE_PROJECT_ID` | Your Appwrite project ID |
-| `APPWRITE_API_KEY` | Server-side secret key from Appwrite Console |
-| `DATABASE_URL` | Appwrite Managed PostgreSQL connection URL |
+| `APPWRITE_API_KEY` | Server-side secret key from Appwrite Console with Database & Users scopes |
+| `NEXT_PUBLIC_APPWRITE_DATABASE_ID` | Appwrite database ID (`repsi_ops_db`) |
 | `NEXT_PUBLIC_APPWRITE_STORAGE_BUCKET` | Storage bucket for attachments (`repsi_attachments`) |
 
 ---
@@ -83,26 +82,16 @@ Configure your variables:
 2. Under **Auth**:
    - Enable **Email/Password** authentication.
    - Set Session length to 30 days.
-3. Under **Storage**:
-   - Create bucket `repsi_attachments` with file size limit (10MB) and allowed extensions (`.jpg`, `.png`, `.pdf`, `.mp3`).
+3. Under **Databases**:
+   - Use Appwrite TablesDB: database ID `repsi_ops_db`.
 4. Under **API Keys**:
-   - Create a server API key with permissions: `users.read`, `users.write`, `databases.read`, `databases.write`, `files.read`, `files.write`.
-
----
-
-## 5. Database Setup (Appwrite Managed PostgreSQL)
-
-Execute the full schema located at `db/schema.sql` against your Appwrite Managed PostgreSQL instance:
-
-```bash
-# Using standard psql or Appwrite PostgreSQL console
-psql "$DATABASE_URL" -f db/schema.sql
-```
-
-The schema creates:
-- `user_profiles` (mapped to Appwrite Auth)
-- `gyms` (CRM entity with business types, sizes, and pipeline stages)
-- `visits` & `visit_reports`
+   - Create an API key with scopes:
+     - `databases.*`, `collections.*`, `attributes.*`, `indexes.*`, `documents.*`
+     - `users.*`, `files.*`, `buckets.*`
+5. Run the schema provisioner:
+   ```bash
+   npx tsx --env-file=.env scripts/setup-appwrite-tablesdb.ts
+   ```
 - `follow_ups`
 - `activities` (Gym Activity Timeline)
 - `modules` (Attendance, Membership, Payments, Trainer, Reports, Notifications)
