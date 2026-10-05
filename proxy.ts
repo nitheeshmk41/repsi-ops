@@ -17,16 +17,24 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow login page
-  if (pathname === "/login") {
-    return NextResponse.next();
-  }
-
   // Check internal session cookie
   const session =
     request.cookies.get("appwrite-session")?.value ||
     request.cookies.get("repsi_session")?.value;
-  const userRole = request.cookies.get("repsi_role")?.value || "ADMIN";
+  const userRole = request.cookies.get("repsi_role")?.value;
+
+  // Allow login page (or redirect to dashboard if already logged in)
+  if (pathname === "/login") {
+    if (session) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Strictly require authentication: redirect unauthenticated requests to /login
+  if (!session) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
   // Role-based route enforcement
   if (userRole) {
