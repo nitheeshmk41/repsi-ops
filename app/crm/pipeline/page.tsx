@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Kanban,
@@ -25,11 +25,20 @@ import { Gym, PipelineStage, LostReason } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 
 export default function PipelinePage() {
-  const [gyms, setGyms] = useState<Gym[]>(opsStore.getGyms());
+  const [gyms, setGyms] = useState<Gym[]>([]);
   const [draggedGymId, setDraggedGymId] = useState<string | null>(null);
   const [activeDropStage, setActiveDropStage] = useState<PipelineStage | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRep, setSelectedRep] = useState("ALL");
+
+  useEffect(() => {
+    opsStore.ensureHydrated();
+    setGyms([...opsStore.getGyms()]);
+    const unsubscribe = opsStore.subscribe(() => {
+      setGyms([...opsStore.getGyms()]);
+    });
+    return unsubscribe;
+  }, []);
 
   // Lost modal state if dropped into LOST
   const [showLostModal, setShowLostModal] = useState(false);

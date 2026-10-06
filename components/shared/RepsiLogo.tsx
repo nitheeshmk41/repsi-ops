@@ -49,7 +49,7 @@ export function RepsiLogo({ className, size = "md", showDomain = false }: RepsiL
 
         {showDomain && (
           <span className="text-[11px] text-slate-400 font-mono mt-1 tracking-tight pl-0.5">
-            ops.repsi.app
+            repsi-ops.vercel.app
           </span>
         )}
       </div>

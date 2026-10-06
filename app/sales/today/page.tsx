@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -22,10 +22,19 @@ import { opsStore } from "@/lib/services/ops-store";
 import { Visit } from "@/types";
 
 export default function TodaySchedulePage() {
-  const [visits, setVisits] = useState<Visit[]>(opsStore.getVisits());
+  const [visits, setVisits] = useState<Visit[]>([]);
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+  useEffect(() => {
+    opsStore.ensureHydrated();
+    setVisits([...opsStore.getVisits()]);
+    const unsubscribe = opsStore.subscribe(() => {
+      setVisits([...opsStore.getVisits()]);
+    });
+    return unsubscribe;
+  }, []);
 
   // Visit Report Form State
   const [reportData, setReportData] = useState({

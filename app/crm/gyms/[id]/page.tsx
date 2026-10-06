@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -22,19 +22,34 @@ import {
   CreditCard,
   Layers,
   ArrowLeft,
+  Edit2,
+  X,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { opsStore } from "@/lib/services/ops-store";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import { PipelineStage, LostReason } from "@/types";
+import { PipelineStage, LostReason, BusinessType } from "@/types";
 
 export default function GymDetailPage() {
   const params = useParams();
   const router = useRouter();
   const gymId = params.id as string;
 
-  const gym = opsStore.getGymById(gymId);
+  const [gym, setGym] = useState(opsStore.getGymById(gymId));
+
+  useEffect(() => {
+    opsStore.ensureHydrated();
+    const current = opsStore.getGymById(gymId);
+    setGym(current);
+    if (current) setCurrentStage(current.stage);
+    const unsubscribe = opsStore.subscribe(() => {
+      const updated = opsStore.getGymById(gymId);
+      setGym(updated);
+      if (updated) setCurrentStage(updated.stage);
+    });
+    return unsubscribe;
+  }, [gymId]);
   const [activeTab, setActiveTab] = useState<
     "overview" | "timeline" | "visits" | "followups" | "feedback" | "requests"
   >("overview");
@@ -47,7 +62,42 @@ export default function GymDetailPage() {
 
   // Quick Action Modal states
   const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [newNote, setNewNote] = useState("");
+
+  // Edit Form State
+  const [editFormData, setEditFormData] = useState({
+    name: gym?.name || "",
+    owner_name: gym?.owner_name || "",
+    phone: gym?.phone || "",
+    whatsapp: gym?.whatsapp || gym?.phone || "",
+    email: gym?.email || "",
+    area: gym?.area || "",
+    city: gym?.city || "Coimbatore",
+    address: gym?.address || "",
+    business_type: (gym?.business_type || "Gym") as BusinessType,
+    members_count: gym?.members_count || 150,
+    current_software: gym?.current_software || "Excel Sheets",
+    current_payment_system: gym?.current_payment_system || "GPay QR / Cash",
+    expected_revenue: gym?.expected_revenue || 35000,
+    stage: (gym?.stage || "PROSPECT") as PipelineStage,
+  });
+
+  // Schedule Form State
+  const [scheduleData, setScheduleData] = useState({
+    time_slot: "11:00 AM",
+    scheduled_at: new Date().toISOString().split("T")[0],
+  });
+
+  // Follow-up Form State
+  const [followUpData, setFollowUpData] = useState({
+    contact_name: gym?.owner_name || "",
+    due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+    type: "WHATSAPP" as const,
+    notes: `Follow-up with ${gym?.owner_name} regarding quotation and demo feedback`,
+  });
 
   if (!gym) {
     return (
@@ -75,12 +125,14 @@ export default function GymDetailPage() {
     }
     opsStore.updateGymStage(gym.id, newStage);
     setCurrentStage(newStage);
+    setGym(opsStore.getGymById(gym.id));
   };
 
   const handleConfirmLost = () => {
     opsStore.updateGymStage(gym.id, "LOST", lostReason, lostNotes);
     setCurrentStage("LOST");
     setShowLostModal(false);
+    setGym(opsStore.getGymById(gym.id));
   };
 
   const handleAddNote = (e: React.FormEvent) => {
@@ -98,6 +150,66 @@ export default function GymDetailPage() {
 
     setNewNote("");
     setShowNoteModal(false);
+    setGym(opsStore.getGymById(gym.id));
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    opsStore.updateGym(gym.id, {
+      name: editFormData.name,
+      owner_name: editFormData.owner_name,
+      phone: editFormData.phone,
+      whatsapp: editFormData.whatsapp,
+      email: editFormData.email,
+      area: editFormData.area,
+      city: editFormData.city,
+      address: editFormData.address,
+      business_type: editFormData.business_type,
+      members_count: editFormData.members_count,
+      current_software: editFormData.current_software,
+      current_payment_system: editFormData.current_payment_system,
+      expected_revenue: editFormData.expected_revenue,
+      stage: editFormData.stage,
+    });
+    setCurrentStage(editFormData.stage);
+    setGym(opsStore.getGymById(gym.id));
+    setShowEditModal(false);
+  };
+
+  const handleSaveSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    opsStore.scheduleVisit({
+      gym_id: gym.id,
+      gym_name: gym.name,
+      gym_area: gym.area,
+      owner_name: gym.owner_name,
+      salesperson_id: "usr_sales_1",
+      salesperson_name: "Arun Sales (Salesperson A)",
+      time_slot: scheduleData.time_slot,
+      scheduled_at: scheduleData.scheduled_at,
+      status: "SCHEDULED",
+    });
+    setGym(opsStore.getGymById(gym.id));
+    setShowScheduleModal(false);
+    alert("Visit scheduled successfully!");
+  };
+
+  const handleSaveFollowUp = (e: React.FormEvent) => {
+    e.preventDefault();
+    opsStore.createFollowUp({
+      gym_id: gym.id,
+      gym_name: gym.name,
+      contact_name: followUpData.contact_name || gym.owner_name,
+      due_date: followUpData.due_date,
+      assigned_to_id: "usr_sales_1",
+      assigned_to_name: "Arun Sales (Salesperson A)",
+      type: followUpData.type,
+      status: "PENDING",
+      notes: followUpData.notes,
+    });
+    setGym(opsStore.getGymById(gym.id));
+    setShowFollowUpModal(false);
+    alert("Follow-up created successfully!");
   };
 
   const stages: PipelineStage[] = [
@@ -125,6 +237,18 @@ export default function GymDetailPage() {
     "Competitor",
     "No response",
     "Other",
+  ];
+
+  const businessTypes: BusinessType[] = [
+    "Gym",
+    "Fitness Studio",
+    "CrossFit",
+    "Yoga",
+    "Personal Training",
+    "Martial Arts",
+    "Sports Academy",
+    "Wellness Center",
+    "Multi-branch",
   ];
 
   return (
@@ -175,8 +299,50 @@ export default function GymDetailPage() {
             </div>
           </div>
 
-          {/* Quick Actions (Call, WhatsApp, Email, Schedule Visit, Add Note) */}
+          {/* Quick Actions (Edit, Follow-up, Schedule, Call, WhatsApp, Email, Add Note) */}
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                setEditFormData({
+                  name: gym.name,
+                  owner_name: gym.owner_name,
+                  phone: gym.phone,
+                  whatsapp: gym.whatsapp || gym.phone,
+                  email: gym.email || "",
+                  area: gym.area,
+                  city: gym.city,
+                  address: gym.address || "",
+                  business_type: gym.business_type,
+                  members_count: gym.members_count || 150,
+                  current_software: gym.current_software || "Excel Sheets",
+                  current_payment_system: gym.current_payment_system || "GPay QR / Cash",
+                  expected_revenue: gym.expected_revenue || 35000,
+                  stage: gym.stage,
+                });
+                setShowEditModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold shadow-md shadow-emerald-500/20 transition-all"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              Edit Details
+            </button>
+
+            <button
+              onClick={() => setShowFollowUpModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold border border-amber-500/30 transition-colors"
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              Follow-ups
+            </button>
+
+            <button
+              onClick={() => setShowScheduleModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 text-xs font-semibold border border-sky-500/30 transition-colors"
+            >
+              <Calendar className="w-3.5 h-3.5 text-sky-400" />
+              Schedule
+            </button>
+
             <a
               href={`tel:${gym.phone}`}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
@@ -317,7 +483,7 @@ export default function GymDetailPage() {
               </div>
               <div className="flex justify-between py-1.5">
                 <span className="text-slate-400">Address:</span>
-                <span className="font-semibold text-slate-300 text-right max-w-[200px] truncate">{gym.address}</span>
+                <span className="font-semibold text-slate-300 text-right max-w-[200px] truncate">{gym.address || "Coimbatore"}</span>
               </div>
             </div>
           </div>
@@ -384,12 +550,12 @@ export default function GymDetailPage() {
         <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-white">Sales Visits History</h3>
-            <Link
-              href="/sales/today"
+            <button
+              onClick={() => setShowScheduleModal(true)}
               className="text-xs px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold"
             >
               Schedule New Visit
-            </Link>
+            </button>
           </div>
 
           {visits.length === 0 ? (
@@ -427,7 +593,16 @@ export default function GymDetailPage() {
       {/* Tab 4: Follow-ups */}
       {activeTab === "followups" && (
         <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-          <h3 className="text-sm font-bold text-white">Follow-up Tasks</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-white">Follow-up Tasks</h3>
+            <button
+              onClick={() => setShowFollowUpModal(true)}
+              className="text-xs px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold"
+            >
+              + Add Follow-up
+            </button>
+          </div>
+
           {followUps.length === 0 ? (
             <p className="text-xs text-slate-400 py-6 text-center">No pending follow-ups.</p>
           ) : (
@@ -448,6 +623,7 @@ export default function GymDetailPage() {
                   <button
                     onClick={() => {
                       opsStore.completeFollowUp(f.id);
+                      setGym(opsStore.getGymById(gym.id));
                       alert("Follow-up marked completed!");
                     }}
                     className="text-xs px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium"
@@ -502,6 +678,309 @@ export default function GymDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edit Details Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Edit2 className="w-4 h-4 text-emerald-400" />
+                  Edit Details: {gym.name}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Update business profile, contact info, pipeline stage and pricing
+                </p>
+              </div>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Gym Name *</label>
+                  <input
+                    required
+                    type="text"
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Owner Name *</label>
+                  <input
+                    required
+                    type="text"
+                    value={editFormData.owner_name}
+                    onChange={(e) => setEditFormData({ ...editFormData, owner_name: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Phone Number *</label>
+                  <input
+                    required
+                    type="text"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">WhatsApp</label>
+                  <input
+                    type="text"
+                    value={editFormData.whatsapp}
+                    onChange={(e) => setEditFormData({ ...editFormData, whatsapp: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Email Address</label>
+                  <input
+                    type="email"
+                    value={editFormData.email}
+                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                    placeholder="owner@gym.com"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Pipeline Stage</label>
+                  <select
+                    value={editFormData.stage}
+                    onChange={(e) => setEditFormData({ ...editFormData, stage: e.target.value as PipelineStage })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
+                  >
+                    {stages.map((st) => (
+                      <option key={st} value={st}>{st.replace(/_/g, " ")}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Business Type</label>
+                  <select
+                    value={editFormData.business_type}
+                    onChange={(e) => setEditFormData({ ...editFormData, business_type: e.target.value as BusinessType })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
+                  >
+                    {businessTypes.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Active Members</label>
+                  <input
+                    type="number"
+                    value={editFormData.members_count}
+                    onChange={(e) => setEditFormData({ ...editFormData, members_count: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Area</label>
+                  <input
+                    required
+                    type="text"
+                    value={editFormData.area}
+                    onChange={(e) => setEditFormData({ ...editFormData, area: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">City</label>
+                  <input
+                    type="text"
+                    value={editFormData.city}
+                    onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Current Software</label>
+                  <input
+                    type="text"
+                    value={editFormData.current_software}
+                    onChange={(e) => setEditFormData({ ...editFormData, current_software: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Expected Annual Revenue (INR)</label>
+                  <input
+                    type="number"
+                    value={editFormData.expected_revenue}
+                    onChange={(e) => setEditFormData({ ...editFormData, expected_revenue: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold shadow-md shadow-emerald-500/20"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Visit Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <form onSubmit={handleSaveSchedule} className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-sky-400" />
+                Schedule Field Visit: {gym.name}
+              </h3>
+              <button type="button" onClick={() => setShowScheduleModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-300">Time Slot *</label>
+                <input
+                  required
+                  type="text"
+                  value={scheduleData.time_slot}
+                  onChange={(e) => setScheduleData({ ...scheduleData, time_slot: e.target.value })}
+                  placeholder="e.g. 11:00 AM"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-300">Date *</label>
+                <input
+                  required
+                  type="date"
+                  value={scheduleData.scheduled_at}
+                  onChange={(e) => setScheduleData({ ...scheduleData, scheduled_at: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <button type="button" onClick={() => setShowScheduleModal(false)} className="px-4 py-2 text-slate-400 hover:text-white">
+                Cancel
+              </button>
+              <button type="submit" className="px-5 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold rounded-xl shadow-md">
+                Schedule Visit
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Add Follow-up Modal */}
+      {showFollowUpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <form onSubmit={handleSaveFollowUp} className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-400" />
+                Schedule Follow-up: {gym.name}
+              </h3>
+              <button type="button" onClick={() => setShowFollowUpModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-300">Follow-up Type</label>
+                <select
+                  value={followUpData.type}
+                  onChange={(e) => setFollowUpData({ ...followUpData, type: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white"
+                >
+                  <option value="WHATSAPP">WhatsApp</option>
+                  <option value="CALL">Phone Call</option>
+                  <option value="VISIT">In-person Visit</option>
+                  <option value="DEMO">Product Demo</option>
+                  <option value="EMAIL">Email</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-300">Due Date *</label>
+                <input
+                  required
+                  type="date"
+                  value={followUpData.due_date}
+                  onChange={(e) => setFollowUpData({ ...followUpData, due_date: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-300">Follow-up Notes / Task *</label>
+              <textarea
+                required
+                rows={3}
+                value={followUpData.notes}
+                onChange={(e) => setFollowUpData({ ...followUpData, notes: e.target.value })}
+                placeholder="What needs to be followed up?"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <button type="button" onClick={() => setShowFollowUpModal(false)} className="px-4 py-2 text-slate-400 hover:text-white">
+                Cancel
+              </button>
+              <button type="submit" className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl shadow-md">
+                Save Follow-up
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -581,7 +1060,7 @@ export default function GymDetailPage() {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl"
+                className="px-5 py-2 text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl"
               >
                 Save Note
               </button>

@@ -129,7 +129,7 @@ export default function SettingsPage() {
             REPSI Ops is architected for zero/low-cost free-tier deployment on <strong>Vercel</strong> + <strong>Appwrite Cloud</strong>.
           </p>
           <div className="pt-2 flex items-center gap-4 text-slate-300 font-mono">
-            <span>Primary Domain: <strong className="text-white">ops.repsi.app</strong></span>
+            <span>Primary Domain: <strong className="text-white">repsi-ops.vercel.app</strong></span>
             <span>•</span>
             <span>Stack: <strong className="text-emerald-400">Next.js 16 + React 19 + Appwrite</strong></span>
           </div>

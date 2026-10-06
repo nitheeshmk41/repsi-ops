@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -35,14 +35,43 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
   const pathname = usePathname();
   const { role, user } = useAuth();
   const effectiveRoles = user?.roles && user.roles.length > 0 ? user.roles : role;
+  const navContainerRef = useRef<HTMLDivElement>(null);
 
-  // Navigation section toggles
-  const [crmOpen, setCrmOpen] = useState(true);
-  const [salesOpen, setSalesOpen] = useState(true);
-  const [productOpen, setProductOpen] = useState(true);
-  const [projectOpen, setProjectOpen] = useState(true);
-  const [bugsOpen, setBugsOpen] = useState(true);
-  const [reportsOpen, setReportsOpen] = useState(false);
+  // User manual overrides for collapsed sections
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (section: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [section]: !isSectionOpen(section),
+    }));
+  };
+
+  const isSectionOpen = (section: string) => {
+    if (collapsedSections[section] !== undefined) {
+      return !collapsedSections[section];
+    }
+    if (section === "reports") {
+      return pathname.startsWith("/reports");
+    }
+    return true;
+  };
+
+  // Restore sidebar scroll position once on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && navContainerRef.current) {
+      const savedScroll = sessionStorage.getItem("sidebar_scroll_pos");
+      if (savedScroll) {
+        navContainerRef.current.scrollTop = Number(savedScroll);
+      }
+    }
+  }, []);
+
+  const handleScroll = () => {
+    if (typeof window !== "undefined" && navContainerRef.current) {
+      sessionStorage.setItem("sidebar_scroll_pos", String(navContainerRef.current.scrollTop));
+    }
+  };
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -56,11 +85,17 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
     return (
       <Link
         href={href}
-        onClick={onCloseMobile}
+        scroll={false}
+        onClick={() => {
+          if (navContainerRef.current) {
+            sessionStorage.setItem("sidebar_scroll_pos", String(navContainerRef.current.scrollTop));
+          }
+          if (onCloseMobile) onCloseMobile();
+        }}
         className={cn(
           "flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all group",
           active
-            ? "bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/30"
+            ? "bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/30 shadow-sm shadow-emerald-500/10"
             : "text-slate-300 hover:text-white hover:bg-slate-800/60"
         )}
       >
@@ -87,12 +122,16 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
   return (
     <aside className="w-64 h-screen bg-slate-950/90 border-r border-slate-800/80 flex flex-col select-none">
       {/* Brand Header */}
-      <div className="p-4 border-b border-slate-800/80">
+      <div className="p-4 border-b border-slate-800/80 shrink-0">
         <RepsiLogo size="md" showDomain={true} />
       </div>
 
-      {/* Nav List */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+      {/* Nav List with Persistent Scroll */}
+      <div
+        ref={navContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-3 py-4 space-y-5"
+      >
         {/* Core Dashboard */}
         <div>
           {navItem("/dashboard", "Dashboard", <LayoutDashboard className="w-4 h-4" />)}
@@ -102,16 +141,16 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         {canAccessRoute(effectiveRoles, "/crm") && (
           <div className="space-y-1">
             <button
-              onClick={() => setCrmOpen(!crmOpen)}
-              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200"
+              type="button"
+              onClick={() => toggleSection("crm")}
+              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 cursor-pointer"
             >
               <span>CRM</span>
-              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", crmOpen ? "rotate-0" : "-rotate-90")} />
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isSectionOpen("crm") ? "rotate-0" : "-rotate-90")} />
             </button>
-            {crmOpen && (
+            {isSectionOpen("crm") && (
               <div className="space-y-0.5 pl-1 pt-1">
                 {navItem("/crm/leads", "Leads", <Target className="w-4 h-4" />)}
-                {navItem("/crm/gyms", "Gyms", <Building2 className="w-4 h-4" />)}
                 {navItem("/crm/visits", "Visits", <CalendarDays className="w-4 h-4" />)}
                 {navItem("/crm/follow-ups", "Follow-ups", <Clock className="w-4 h-4" />, 2, "bg-amber-500/20 text-amber-300 border border-amber-500/40")}
                 {navItem("/crm/pipeline", "Pipeline", <Kanban className="w-4 h-4" />)}
@@ -125,13 +164,14 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         {canAccessRoute(effectiveRoles, "/sales") && (
           <div className="space-y-1">
             <button
-              onClick={() => setSalesOpen(!salesOpen)}
-              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200"
+              type="button"
+              onClick={() => toggleSection("sales")}
+              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 cursor-pointer"
             >
               <span>Sales</span>
-              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", salesOpen ? "rotate-0" : "-rotate-90")} />
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isSectionOpen("sales") ? "rotate-0" : "-rotate-90")} />
             </button>
-            {salesOpen && (
+            {isSectionOpen("sales") && (
               <div className="space-y-0.5 pl-1 pt-1">
                 {navItem("/sales/today", "Today's Schedule", <CalendarDays className="w-4 h-4" />, 3, "bg-emerald-500/20 text-emerald-300")}
                 {navItem("/sales/visits", "My Visits", <Building2 className="w-4 h-4" />)}
@@ -146,13 +186,14 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         {canAccessRoute(effectiveRoles, "/product") && (
           <div className="space-y-1">
             <button
-              onClick={() => setProductOpen(!productOpen)}
-              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200"
+              type="button"
+              onClick={() => toggleSection("product")}
+              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 cursor-pointer"
             >
               <span>Product</span>
-              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", productOpen ? "rotate-0" : "-rotate-90")} />
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isSectionOpen("product") ? "rotate-0" : "-rotate-90")} />
             </button>
-            {productOpen && (
+            {isSectionOpen("product") && (
               <div className="space-y-0.5 pl-1 pt-1">
                 {navItem("/product/modules", "Modules", <Layers className="w-4 h-4" />)}
                 {navItem("/product/features", "Features", <CheckSquare className="w-4 h-4" />)}
@@ -168,13 +209,14 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         {canAccessRoute(effectiveRoles, "/project") && (
           <div className="space-y-1">
             <button
-              onClick={() => setProjectOpen(!projectOpen)}
-              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200"
+              type="button"
+              onClick={() => toggleSection("project")}
+              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 cursor-pointer"
             >
               <span>Project</span>
-              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", projectOpen ? "rotate-0" : "-rotate-90")} />
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isSectionOpen("project") ? "rotate-0" : "-rotate-90")} />
             </button>
-            {projectOpen && (
+            {isSectionOpen("project") && (
               <div className="space-y-0.5 pl-1 pt-1">
                 {navItem("/project/tasks", "Tasks", <CheckSquare className="w-4 h-4" />)}
                 {navItem("/project/my-work", "My Work", <CheckSquare className="w-4 h-4" />)}
@@ -190,13 +232,14 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         {canAccessRoute(effectiveRoles, "/bugs") && (
           <div className="space-y-1">
             <button
-              onClick={() => setBugsOpen(!bugsOpen)}
-              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200"
+              type="button"
+              onClick={() => toggleSection("bugs")}
+              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 cursor-pointer"
             >
               <span>Bugs</span>
-              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", bugsOpen ? "rotate-0" : "-rotate-90")} />
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isSectionOpen("bugs") ? "rotate-0" : "-rotate-90")} />
             </button>
-            {bugsOpen && (
+            {isSectionOpen("bugs") && (
               <div className="space-y-0.5 pl-1 pt-1">
                 {navItem("/bugs/all", "All Bugs", <Bug className="w-4 h-4" />)}
                 {navItem("/bugs/critical", "Critical Bugs", <AlertTriangle className="w-4 h-4" />, 1, "bg-red-500/20 text-red-300 border border-red-500/40")}
@@ -211,13 +254,14 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
         {canAccessRoute(effectiveRoles, "/reports") && (
           <div className="space-y-1">
             <button
-              onClick={() => setReportsOpen(!reportsOpen)}
-              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200"
+              type="button"
+              onClick={() => toggleSection("reports")}
+              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 cursor-pointer"
             >
               <span>Reports</span>
-              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", reportsOpen ? "rotate-0" : "-rotate-90")} />
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isSectionOpen("reports") ? "rotate-0" : "-rotate-90")} />
             </button>
-            {reportsOpen && (
+            {isSectionOpen("reports") && (
               <div className="space-y-0.5 pl-1 pt-1">
                 {navItem("/reports/sales", "Sales Report", <BarChart3 className="w-4 h-4" />)}
                 {navItem("/reports/product", "Product Report", <Layers className="w-4 h-4" />)}
@@ -235,7 +279,7 @@ export function AppSidebar({ onCloseMobile }: AppSidebarProps) {
       </div>
 
       {/* Internal Security Badge */}
-      <div className="p-3 border-t border-slate-800/80 bg-slate-900/40">
+      <div className="p-3 border-t border-slate-800/80 bg-slate-900/40 shrink-0">
         <div className="flex items-center justify-between text-[11px] text-slate-500">
           <span>Internal Access Only</span>
           <span className="font-mono text-emerald-400">v1.5.0-ops</span>

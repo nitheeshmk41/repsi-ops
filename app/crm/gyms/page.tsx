@@ -154,7 +154,7 @@ export default function GymsPage() {
                   </div>
                 </div>
                 <Link
-                  href={`/crm/leads/${g.id}`}
+                  href={`/crm/gyms/${g.id}`}
                   className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs flex items-center gap-1.5 transition-colors"
                 >
                   <span>View Details</span>
